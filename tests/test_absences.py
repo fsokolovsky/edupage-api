@@ -66,6 +66,9 @@ ITEMS = [
     # 2026-10-20: absent, note rejected -> still unexcused
     absence(130, "2026-10-20 12:00:00", "2026-10-20", {"p_1": "A"}, False, author="Other Teacher"),
     excuse(131, "2026-10-21 08:00:00", "CCCC", "2026-10-20", "2026-10-20", "Overslept", decided="rejected"),
+    # 2026-10-22: absent, the teacher entered the note (no parent note, no decision)
+    absence(135, "2026-10-22 12:00:00", "2026-10-22", {"p_1": "A", "p_2": "A"}, True),
+    excuse(136, "2026-10-23 09:00:00", "DDDD", "2026-10-22", "2026-10-22", None, sent_type=None),
     # 2026-11-04: absent, nothing sent
     absence(140, "2026-11-04 12:03:59", "2026-11-04", {"p_07-40": "A-P"}, False),
     item(150, "2026-11-05 13:24:57", "ospravedlnenka_reminder",
@@ -98,7 +101,8 @@ class AbsencesTests(unittest.TestCase):
         overview = self.api.get_absences(date(2026, 10, 1))
 
         self.assertEqual([a.date for a in overview.absences],
-                         [date(2026, 10, 7), date(2026, 10, 16), date(2026, 10, 20), date(2026, 11, 4)])
+                         [date(2026, 10, 7), date(2026, 10, 16), date(2026, 10, 20), date(2026, 10, 22),
+                          date(2026, 11, 4)])
         first = overview.absences[0]
         self.assertEqual(first.event_id, 101)
         self.assertEqual(first.periods, {"1": "A", "2": "A", "3": "A-L"})
@@ -106,7 +110,7 @@ class AbsencesTests(unittest.TestCase):
         self.assertEqual(first.recorded_by, "Example Teacher")
         self.assertEqual(first.recorded_at, datetime(2026, 10, 8, 9, 0, 0))
 
-        late = overview.absences[3]
+        late = overview.absences[4]
         self.assertEqual(late.periods, {"07-40": "A-P"})
         self.assertFalse(late.is_excused)
         self.assertEqual(overview.absences[2].recorded_by, "Other Teacher")
@@ -114,8 +118,8 @@ class AbsencesTests(unittest.TestCase):
     def test_excuses_merge_their_items_and_carry_the_decision(self):
         overview = self.api.get_absences(date(2026, 10, 1))
 
-        self.assertEqual([e.excuse_id for e in overview.excuses], ["AAAA", "BBBB", "CCCC"])
-        accepted, pending, rejected = overview.excuses
+        self.assertEqual([e.excuse_id for e in overview.excuses], ["AAAA", "BBBB", "CCCC", "DDDD"])
+        accepted, pending, rejected, recorded = overview.excuses
 
         self.assertEqual(accepted.status, ExcuseStatus.ACCEPTED)
         self.assertEqual(accepted.event_ids, [110, 111])
@@ -133,6 +137,10 @@ class AbsencesTests(unittest.TestCase):
         self.assertFalse(pending.covers(date(2026, 10, 18)))
 
         self.assertEqual(rejected.status, ExcuseStatus.REJECTED)
+        self.assertEqual(recorded.status, ExcuseStatus.RECORDED)
+        self.assertFalse(recorded.sent_by_parent)
+        self.assertIsNone(recorded.note)
+        self.assertEqual([e.is_resolved for e in overview.excuses], [True, False, False, True])
         self.assertEqual(overview.pending_excuses, [pending])
         self.assertEqual(overview.excuses_for(date(2026, 10, 7)), [accepted])
 

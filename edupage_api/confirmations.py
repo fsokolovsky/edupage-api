@@ -16,8 +16,9 @@ What EduPage does and does not expose (as observed on parent accounts):
   with the account that made it and the time (``cas_pridania``);
 * on a voting message the chosen answer of other people is not exposed, only
   that they reacted;
-* a reaction that only carries a ``like`` is a like, not a confirmation; on a
-  message that asks for a read receipt it still means the message was opened.
+* a reaction that only carries a ``like`` counts as a read receipt (EduPage
+  counts it in the ``receipt`` total) but not as a vote (it is missing from
+  the ``vote`` totals).
 
 Read only: this module does not confirm or vote.
 """
@@ -233,8 +234,14 @@ class MessageStatus:
     # child and the child's parents (from the login data).
     family_ids: list[str]
     # Confirmations by the family found in the message's reactions;
-    # None when the reactions were not fetched.
+    # None when the reactions were not fetched (see `reactions_error`).
     family_confirmations: list[MessageConfirmation] | None = None
+    # Why the reactions could not be fetched, when they were asked for.
+    reactions_error: str | None = None
+
+    @property
+    def reactions_fetched(self) -> bool:
+        return self.family_confirmations is not None
 
     @property
     def message_id(self) -> int:
@@ -280,6 +287,8 @@ class MessageStatus:
 
     @property
     def is_pending(self) -> bool:
+        """Nobody known confirmed it. When the reactions could not be fetched
+        (`reactions_error`) this only reflects your own confirmation."""
         return not self.is_confirmed
 
     @staticmethod
@@ -329,11 +338,18 @@ class ConfirmationsOverview:
 
     @property
     def pending(self) -> list[MessageStatus]:
-        return [m for m in self.messages if m.is_pending]
+        """Messages nobody in the family confirmed, as far as is known."""
+        return [m for m in self.messages if m.is_pending and m.reactions_error is None]
 
     @property
     def confirmed(self) -> list[MessageStatus]:
         return [m for m in self.messages if m.is_confirmed]
+
+    @property
+    def unknown(self) -> list[MessageStatus]:
+        """Messages you did not confirm whose reactions could not be fetched,
+        so the rest of the family is unknown."""
+        return [m for m in self.messages if m.is_pending and m.reactions_error is not None]
 
 
 class Confirmations(Module):
@@ -401,7 +417,8 @@ class Confirmations(Module):
             for status in messages:
                 try:
                     reactions = self.get_message_confirmations(status.message_id)
-                except MissingDataException:
+                except (MissingDataException, RequestError, ValueError) as error:
+                    status.reactions_error = str(error)
                     continue
                 status.family_confirmations = reactions.by(family)
         return ConfirmationsOverview(date_from, family, messages)

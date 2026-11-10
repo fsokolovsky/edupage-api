@@ -5,8 +5,10 @@ EduPage posts three kinds of timeline items:
 
 * ``student_absent`` - a teacher recorded the student as absent in some
   lessons of a day (`Absence`);
-* ``ospravedlnenka`` - an excuse note was created, and again when the class
-  teacher accepted or rejected it (`AbsenceExcuse`, the latest item wins);
+* ``ospravedlnenka`` - an excuse note: sent by a parent and accepted or
+  rejected by the class teacher, or entered by the teacher directly
+  (`AbsenceExcuse`; when EduPage posts a note more than once the latest item
+  wins);
 * ``ospravedlnenka_reminder`` - EduPage reminds the parent that some days are
   still not excused (`AbsenceReminder`).
 
@@ -82,9 +84,13 @@ class Absence:
 
 
 class ExcuseStatus(str, Enum):
-    PENDING = "pending"  # sent, the class teacher has not decided yet
-    ACCEPTED = "accepted"
+    PENDING = "pending"  # sent by a parent, the class teacher has not decided yet
+    ACCEPTED = "accepted"  # sent by a parent and accepted by the class teacher
     REJECTED = "rejected"
+    # Entered by the class teacher directly (e.g. from a paper note), so
+    # there is nothing to accept; EduPage sends these without the
+    # "sa_parent" type and without a decision.
+    RECORDED = "recorded"
 
 
 @dataclass
@@ -117,17 +123,18 @@ class AbsenceExcuse:
         if excuse_id is None:
             return None
 
-        if data.get("zamietnute") in (True, 1, "1"):
-            status = ExcuseStatus.REJECTED
-        elif data.get("akceptovane") in (True, 1, "1"):
-            status = ExcuseStatus.ACCEPTED
-        else:
-            status = ExcuseStatus.PENDING
-
         sent_by_parent = any(
             isinstance(e.additional_data, dict) and e.additional_data.get("type") == "sa_parent"
             for e in events
         )
+        if data.get("zamietnute") in (True, 1, "1"):
+            status = ExcuseStatus.REJECTED
+        elif data.get("akceptovane") in (True, 1, "1"):
+            status = ExcuseStatus.ACCEPTED
+        elif sent_by_parent:
+            status = ExcuseStatus.PENDING
+        else:
+            status = ExcuseStatus.RECORDED
         note = next(
             (
                 e.additional_data.get("note")
@@ -153,6 +160,11 @@ class AbsenceExcuse:
             [e.event_id for e in events],
             data,
         )
+
+    @property
+    def is_resolved(self) -> bool:
+        """Accepted, or entered by the teacher; nothing left for the parent."""
+        return self.status in (ExcuseStatus.ACCEPTED, ExcuseStatus.RECORDED)
 
     def covers(self, day: date) -> bool:
         if self.date_from is None:

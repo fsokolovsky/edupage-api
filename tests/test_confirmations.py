@@ -82,6 +82,8 @@ ITEMS = [
     message(104, "2026-10-05 08:00:00", VOTING),
     # 105: receipt, nobody in the family
     message(105, "2026-10-06 08:00:00", RECEIPT),
+    # 108: receipt, EduPage has no reactions for it
+    message(108, "2026-10-06 09:00:00", RECEIPT),
     # plain message and a reply: not requests
     message(106, "2026-10-07 08:00:00", {"messageContent": "Hello"}),
     message(107, "2026-10-07 09:00:00", RECEIPT, reply_to="101"),
@@ -176,7 +178,7 @@ class ConfirmationsTests(unittest.TestCase):
 
     def test_only_requests_are_listed(self):
         overview = self.api.get_confirmations(date(2026, 10, 1), fetch_reactions=False)
-        self.assertEqual([m.message_id for m in overview.messages], [100, 101, 102, 103, 104, 105])
+        self.assertEqual([m.message_id for m in overview.messages], [100, 101, 102, 103, 104, 105, 108])
         self.assertEqual(self.requested, [])
 
         first = overview.messages[0]
@@ -196,11 +198,12 @@ class ConfirmationsTests(unittest.TestCase):
         self.assertEqual(voting.counts, {"vote2": 7, "vote3": 45, "like": 1})
 
         # without reactions, everything I did not confirm myself is pending
-        self.assertEqual([m.message_id for m in overview.pending], [101, 102, 103, 104, 105])
+        self.assertEqual([m.message_id for m in overview.pending], [101, 102, 103, 104, 105, 108])
+        self.assertEqual(overview.unknown, [])
 
     def test_family_confirmations_from_reactions(self):
         overview = self.api.get_confirmations(date(2026, 10, 1))
-        self.assertEqual(self.requested, ["100", "101", "102", "103", "104", "105"])
+        self.assertEqual(self.requested, ["100", "101", "102", "103", "104", "105", "108"])
         by_id = {m.message_id: m for m in overview.messages}
 
         mine = by_id[100]
@@ -232,7 +235,15 @@ class ConfirmationsTests(unittest.TestCase):
         self.assertEqual(nobody.family_confirmations, [])
         self.assertTrue(nobody.is_pending)
 
+        unknown = by_id[108]
+        self.assertIsNone(unknown.family_confirmations)
+        self.assertFalse(unknown.reactions_fetched)
+        self.assertIn("108", unknown.reactions_error)
+        self.assertTrue(nobody.reactions_fetched)
+        self.assertIsNone(nobody.reactions_error)
+
         self.assertEqual([m.message_id for m in overview.pending], [103, 105])
+        self.assertEqual([m.message_id for m in overview.unknown], [108])
         self.assertEqual([m.message_id for m in overview.confirmed], [100, 101, 102, 104])
 
     def test_message_confirmations(self):

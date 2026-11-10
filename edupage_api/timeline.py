@@ -321,7 +321,8 @@ class TimelineEvents(Module):
                 except (ValueError, TypeError):
                     pass
 
-            is_removed = event.get("removed") == "1"
+            # EduPage sends 0/1 as an int or a str depending on the endpoint.
+            is_removed = str(event.get("removed") or "0") == "1"
 
             other_id = None
             ineid = event.get("ineid")

@@ -126,9 +126,10 @@ print(overview.pending_excuses)          # notes the class teacher has not decid
 print(overview.reminders)                # EduPage's "unresolved absences" reminders
 ```
 
-`ExcuseStatus` is `pending`, `accepted` or `rejected`; EduPage posts a note
-again when it is decided, and the latest item wins. The state is the note's,
-not the account's, so a note sent by the other parent is visible too.
+`ExcuseStatus` is `pending`, `accepted` or `rejected` for notes a parent sent,
+and `recorded` for notes the class teacher entered directly (nothing to accept;
+`is_resolved` covers both). The state is the note's, not the account's, so a
+note sent by the other parent is visible too.
 
 ## Message confirmations (read only)
 

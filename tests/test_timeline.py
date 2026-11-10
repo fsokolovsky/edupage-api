@@ -120,6 +120,12 @@ class TimelineParsingTests(unittest.TestCase):
         self.assertIsNone(event.event_subtype)
         self.assertEqual(event.kind, EventType.HOMEWORK)
 
+    def test_removed_flag_is_read_as_int_or_str(self):
+        for value, expected in (("1", True), (1, True), ("0", False), (0, False), (None, False)):
+            event = self.message()
+            event["removed"] = value
+            self.assertEqual(self.parse(event).is_removed, expected, value)
+
     def test_empty_history_user_properties_accept_list_dict_or_none(self):
         for props in ([], {}, None):
             with self.subTest(props=props):
