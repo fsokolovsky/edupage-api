@@ -2,6 +2,13 @@
 
 This Python library allows easy access to EduPage. It's not a Selenium web scraper. It makes requests directly to EduPage's endpoints and parses the HTML document.
 
+> **This is a fork** of [EdupageAPI/edupage-api](https://github.com/EdupageAPI/edupage-api) maintained at
+> [fsokolovsky/edupage-api](https://github.com/fsokolovsky/edupage-api). On top of upstream 0.13.3 it carries
+> the upstream pull requests #131 (a parent's children and school accounts), #135 (numeric `udalostid` in grades)
+> and #136 (registrations, consultations, standalone grades), plus `TimelineEvent.event_subtype` / `kind`
+> for planner events (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
+> install from a tag, e.g. `pip install https://github.com/fsokolovsky/edupage-api/archive/refs/tags/0.13.3+fs1.tar.gz`.
+
 # Installing
 __Warning__: Requires Python >= 3.9!
 
@@ -42,6 +49,27 @@ The docs are available [here](https://edupageapi.github.io/edupage-api/)
 
 # Discord
 https://discord.gg/fg6zBu9ZAn
+
+## Planner events: exams, trips, free days
+
+Entries from the school planner (written exams, oral exams, trips, excursions,
+holidays, ...) arrive in the timeline with the generic `event_type`
+`EventType.EVENT`; EduPage keeps the actual kind in the event's data. The library
+exposes it:
+
+```python
+from edupage_api.timeline import EventType
+
+for event in edupage.get_notification_history(date_from):
+    if event.event_type == EventType.EVENT:
+        print(event.event_subtype)  # raw EduPage code, e.g. "bexam", "trip", "freeday"
+    if event.kind == EventType.BIG_EXAM:  # event_subtype parsed, falls back to event_type
+        print("written exam:", event.text)
+```
+
+`event_type` is unchanged for backwards compatibility. `event_subtype` is `None`
+for every other event type, and `kind` returns `event_type` when EduPage sends a
+code this library does not know yet.
 
 ## Registrations, surveys and consultations (read only)
 

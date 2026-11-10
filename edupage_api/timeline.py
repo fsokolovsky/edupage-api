@@ -187,6 +187,22 @@ class TimelineEvent:
     # Meaning depends on `event_type`, e.g. the deadline day for EventType.HOMEWORK.
     event_time: datetime | None = None
 
+    # Planner entries (exams, trips, free days...) arrive with the generic
+    # event_type EventType.EVENT; EduPage keeps their actual kind in data["typ"],
+    # e.g. "bexam" (written exam) or "trip" (school trip). This is that raw value,
+    # None for every other event_type. Use `kind` for the parsed EventType.
+    event_subtype: str | None = None
+
+    @property
+    def kind(self) -> EventType:
+        """The most specific known type: `event_subtype` parsed as an EventType
+        when EduPage sent one that this library knows, otherwise `event_type`."""
+        if self.event_subtype:
+            parsed = EventType.parse(self.event_subtype)
+            if parsed is not None:
+                return parsed
+        return self.event_type
+
 
 class TimelineEvents(Module):
     def __parse_items(
@@ -332,6 +348,12 @@ class TimelineEvents(Module):
                 except (ValueError, TypeError):
                     pass
 
+            event_subtype = None
+            if event_type == EventType.EVENT and isinstance(additional_data, dict):
+                subtype = additional_data.get("typ")
+                if isinstance(subtype, str) and subtype:
+                    event_subtype = subtype
+
             event = TimelineEvent(
                 event_id,
                 event_timestamp,
@@ -349,6 +371,7 @@ class TimelineEvents(Module):
                 other_id=other_id,
                 response_to=response_to,
                 event_time=event_time,
+                event_subtype=event_subtype,
             )
             output.append(event)
 

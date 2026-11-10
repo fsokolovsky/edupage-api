@@ -95,6 +95,31 @@ class TimelineParsingTests(unittest.TestCase):
                     raw["data"] = raw_data
                     self.assertEqual(self.parse(raw).text, "Original text")
 
+    def test_planner_event_exposes_its_subtype(self):
+        event = self.parse(
+            self.message("Written exam", {"typ": "bexam", "nazov": "Test"}, event_type="event")
+        )
+        self.assertEqual(event.event_type, EventType.EVENT)
+        self.assertEqual(event.event_subtype, "bexam")
+        self.assertEqual(event.kind, EventType.BIG_EXAM)
+
+    def test_unknown_planner_subtype_keeps_generic_kind(self):
+        event = self.parse(
+            self.message("Something new", {"typ": "newkind"}, event_type="event")
+        )
+        self.assertEqual(event.event_subtype, "newkind")
+        self.assertEqual(event.kind, EventType.EVENT)
+
+    def test_subtype_is_only_read_for_planner_events(self):
+        for data in ({}, {"typ": ""}, {"typ": 5}, [], None):
+            with self.subTest(data=data):
+                event = self.parse(self.message("Event", data, event_type="event"))
+                self.assertIsNone(event.event_subtype)
+                self.assertEqual(event.kind, EventType.EVENT)
+        event = self.parse(self.message("Homework", {"typ": "bexam"}, event_type="homework"))
+        self.assertIsNone(event.event_subtype)
+        self.assertEqual(event.kind, EventType.HOMEWORK)
+
     def test_empty_history_user_properties_accept_list_dict_or_none(self):
         for props in ([], {}, None):
             with self.subTest(props=props):
