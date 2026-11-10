@@ -27,7 +27,12 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
-dependencies = ["requests>=2.28"]
+dependencies = [
+    "requests>=2.28",
+    # registrations/consultations build timezone-aware datetimes with zoneinfo;
+    # Windows has no system tz database
+    "tzdata; sys_platform == 'win32'",
+]
 
 [project.urls]
 Homepage = "https://github.com/EdupageAPI/edupage-api"
