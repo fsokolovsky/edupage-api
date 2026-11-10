@@ -6,7 +6,8 @@ This Python library allows easy access to EduPage. It's not a Selenium web scrap
 > [fsokolovsky/edupage-api](https://github.com/fsokolovsky/edupage-api). On top of upstream 0.13.3 it carries
 > the upstream pull requests #131 (a parent's children and school accounts), #135 (numeric `udalostid` in grades)
 > and #136 (registrations, consultations, standalone grades), plus `TimelineEvent.event_subtype` / `kind`
-> for planner events and `get_payments()` for the Payments module (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
+> for planner events, `get_payments()` for the Payments module and `get_absences()` for absences and
+> excuse notes (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
 > install from a tag, e.g. `pip install https://github.com/fsokolovsky/edupage-api/archive/refs/tags/0.13.3+fs1.tar.gz`.
 
 # Installing
@@ -102,6 +103,32 @@ amounts listed on a `PaymentPlan` are only a template and are 0 for meal plans. 
 object keeps the original EduPage row in `raw`. Tested on three Slovak schools with
 one child each; which child a multi-child parent sees is checked against
 `switch_to_child()` and raises when it differs.
+
+## Absences and excuse notes (read only)
+
+Teachers record absences on the timeline, parents send excuse notes
+(ospravedlnenky) and the class teacher accepts or rejects them. `get_absences()`
+collects all of that since a date, for the selected child:
+
+```python
+from datetime import date, timedelta
+
+overview = edupage.get_absences(date.today() - timedelta(days=60))
+
+for absence in overview.absences:        # Absence: date, periods, is_excused, recorded_by
+    print(absence.date, absence.periods, absence.is_excused)
+
+for excuse in overview.excuses:          # AbsenceExcuse: date_from, date_to, note, status
+    print(excuse.date_from, excuse.date_to, excuse.status.value, excuse.note)
+
+print(overview.unexcused_absences)       # absent days without an accepted or pending note
+print(overview.pending_excuses)          # notes the class teacher has not decided yet
+print(overview.reminders)                # EduPage's "unresolved absences" reminders
+```
+
+`ExcuseStatus` is `pending`, `accepted` or `rejected`; EduPage posts a note
+again when it is decided, and the latest item wins. The state is the note's,
+not the account's, so a note sent by the other parent is visible too.
 
 ## Registrations, surveys and consultations (read only)
 

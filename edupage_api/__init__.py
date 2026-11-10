@@ -18,6 +18,7 @@ from edupage_api.lunches import Lunches, Meals
 from edupage_api.messages import Messages
 from edupage_api.module import EdupageModule
 from edupage_api.parent import Parent, SchoolAccount
+from edupage_api.absences import Absences, AbsencesOverview
 from edupage_api.payments import Payments, PaymentsOverview
 from edupage_api.people import (
     EduAccount,
@@ -347,6 +348,22 @@ class Edupage(EdupageModule):
             list[TimetableChange]: List of changes in the timetable.
         """
         return Substitution(self).get_timetable_changes(date)
+
+    def get_absences(self, date_from: date) -> AbsencesOverview:
+        """Get the student's recorded absences, the excuse notes sent for them
+        (with their accepted / rejected / pending state) and EduPage's
+        reminders about unexcused days, from the timeline since `date_from`.
+
+        For a parent account, call `switch_to_child()` first. Read only.
+
+        Args:
+            date_from (datetime.date): How far back to look.
+
+        Returns:
+            AbsencesOverview: `absences`, `excuses`, `reminders`,
+                `unexcused_absences`, `pending_excuses`.
+        """
+        return Absences(self).get_absences(date_from)
 
     def get_payments(self, school_year: int | None = None) -> PaymentsOverview:
         """Get the fees charged to the student, the payments the school received
