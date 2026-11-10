@@ -23,3 +23,6 @@ SUBDOMAIN
 
 .env
 dump.html
+# lokálny prieskum EduPage (skripty a výstupy s reálnymi dátami účtu)
+probe/
+.venv/
