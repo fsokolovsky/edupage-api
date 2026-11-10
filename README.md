@@ -6,8 +6,8 @@ This Python library allows easy access to EduPage. It's not a Selenium web scrap
 > [fsokolovsky/edupage-api](https://github.com/fsokolovsky/edupage-api). On top of upstream 0.13.3 it carries
 > the upstream pull requests #131 (a parent's children and school accounts), #135 (numeric `udalostid` in grades)
 > and #136 (registrations, consultations, standalone grades), plus `TimelineEvent.event_subtype` / `kind`
-> for planner events, `get_payments()` for the Payments module and `get_absences()` for absences and
-> excuse notes (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
+> for planner events, `get_payments()` for the Payments module, `get_absences()` for absences and
+> excuse notes and `get_confirmations()` for message confirmations by the whole family (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
 > install from a tag, e.g. `pip install https://github.com/fsokolovsky/edupage-api/archive/refs/tags/0.13.3+fs1.tar.gz`.
 
 # Installing
@@ -129,6 +129,37 @@ print(overview.reminders)                # EduPage's "unresolved absences" remin
 `ExcuseStatus` is `pending`, `accepted` or `rejected`; EduPage posts a note
 again when it is decided, and the latest item wins. The state is the note's,
 not the account's, so a note sent by the other parent is visible too.
+
+## Message confirmations (read only)
+
+Some messages ask the reader to confirm that they read them ("Dôležitá správa")
+or to vote. The timeline only knows about your own confirmation; who else
+confirmed is in the message's reactions. `get_confirmations()` lists the
+messages since a date that ask for something and tells whether anybody in the
+family dealt with them, where the family is your account, the selected child
+and the child's parents (from the login data), so a confirmation by the other
+parent counts:
+
+```python
+from datetime import date, timedelta
+
+overview = edupage.get_confirmations(date.today() - timedelta(days=60))
+
+for status in overview.pending:          # MessageStatus: nobody in the family confirmed
+    print(status.event.timestamp, status.event.text[:60], "vote" if status.is_voting else "receipt")
+
+for status in overview.confirmed:
+    print(status.message_id, status.confirmed_by, status.confirmed_at)  # e.g. ['Rodic-1234']
+
+reactions = edupage.get_message_confirmations(status.event)   # everybody's confirmations
+print(len(reactions.confirmations), reactions.participant_count)
+```
+
+`get_confirmations()` sends one extra request per such message
+(`fetch_reactions=False` skips that and then only your own confirmation is
+known). On a voting message EduPage does not expose what other people chose,
+only that they reacted; a reaction that is just a like does not count as a
+vote.
 
 ## Registrations, surveys and consultations (read only)
 

@@ -19,6 +19,11 @@ from edupage_api.messages import Messages
 from edupage_api.module import EdupageModule
 from edupage_api.parent import Parent, SchoolAccount
 from edupage_api.absences import Absences, AbsencesOverview
+from edupage_api.confirmations import (
+    Confirmations,
+    ConfirmationsOverview,
+    MessageConfirmations,
+)
 from edupage_api.payments import Payments, PaymentsOverview
 from edupage_api.people import (
     EduAccount,
@@ -84,7 +89,7 @@ class Edupage(EdupageModule):
         self.subdomain = None
         self.gsec_hash = None
         self.username = None
-        self._selected_child_id = None
+        self._selected_child_id: int | None = None
 
         self.session = requests.session()
         self.session.request = functools.partial(
@@ -364,6 +369,45 @@ class Edupage(EdupageModule):
                 `unexcused_absences`, `pending_excuses`.
         """
         return Absences(self).get_absences(date_from)
+
+    def get_confirmations(
+        self, date_from: date, fetch_reactions: bool = True
+    ) -> ConfirmationsOverview:
+        """Get the messages since `date_from` that ask for a read receipt or a
+        vote, and whether somebody in the family already confirmed them.
+
+        "The family" is this account, the selected child and the child's
+        parents, so a confirmation by the other parent counts too. With
+        `fetch_reactions` the reactions of every such message are fetched
+        (one request per message); without it only your own confirmation
+        is known. Read only.
+
+        Args:
+            date_from (datetime.date): How far back to look.
+            fetch_reactions (bool): Also look at who else confirmed.
+
+        Returns:
+            ConfirmationsOverview: `messages` (each a `MessageStatus`),
+                `pending`, `confirmed`.
+        """
+        return Confirmations(self).get_confirmations(date_from, fetch_reactions)
+
+    def get_message_confirmations(
+        self, message: TimelineEvent | int
+    ) -> MessageConfirmations:
+        """Get everybody's confirmations (and likes) of a message, and the
+        message's participants.
+
+        Args:
+            message (TimelineEvent | int): The message or its `event_id`.
+
+        Returns:
+            MessageConfirmations: `confirmations`, `participants`, `by(ids)`.
+
+        Raises:
+            MissingDataException: If EduPage has no reactions for that id.
+        """
+        return Confirmations(self).get_message_confirmations(message)
 
     def get_payments(self, school_year: int | None = None) -> PaymentsOverview:
         """Get the fees charged to the student, the payments the school received
