@@ -29,6 +29,7 @@ class EventType(str, Enum):
 
     # Exam types
     BIG_EXAM = "bexam"
+    EXAM = "exam"
     HOMEWORK = "homework"
     ORAL_EXAM = "oexam"
     PAPER = "rexam"

@@ -18,6 +18,7 @@ from edupage_api.lunches import Lunches, Meals
 from edupage_api.messages import Messages
 from edupage_api.module import EdupageModule
 from edupage_api.parent import Parent, SchoolAccount
+from edupage_api.payments import Payments, PaymentsOverview
 from edupage_api.people import (
     EduAccount,
     EduStudent,
@@ -346,6 +347,25 @@ class Edupage(EdupageModule):
             list[TimetableChange]: List of changes in the timetable.
         """
         return Substitution(self).get_timetable_changes(date)
+
+    def get_payments(self, school_year: int | None = None) -> PaymentsOverview:
+        """Get the fees charged to the student, the payments the school received
+        for them and the school's bank accounts (the "Payments" module).
+
+        For a parent account, call `switch_to_child()` first. Read only.
+
+        Args:
+            school_year (Optional[int]): The starting year of the school year
+                (e.g. 2026 for 2026/2027); the current one if omitted.
+
+        Returns:
+            PaymentsOverview: Fees, payments, plans, accounts and totals.
+
+        Raises:
+            FailedToParsePaymentsDataError: If the school has no payments module
+                or EduPage changed the page.
+        """
+        return Payments(self).get_payments(school_year)
 
     def get_school_year(self) -> int:
         """Returns the current school year.

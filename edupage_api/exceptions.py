@@ -30,6 +30,10 @@ class FailedToParseGradeDataError(Exception):
     pass
 
 
+class FailedToParsePaymentsDataError(Exception):
+    pass
+
+
 class ExpiredSessionException(Exception):
     pass
 

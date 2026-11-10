@@ -6,7 +6,7 @@ This Python library allows easy access to EduPage. It's not a Selenium web scrap
 > [fsokolovsky/edupage-api](https://github.com/fsokolovsky/edupage-api). On top of upstream 0.13.3 it carries
 > the upstream pull requests #131 (a parent's children and school accounts), #135 (numeric `udalostid` in grades)
 > and #136 (registrations, consultations, standalone grades), plus `TimelineEvent.event_subtype` / `kind`
-> for planner events (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
+> for planner events and `get_payments()` for the Payments module (see below). Versions are tagged `0.13.3+fs1`, `0.13.3+fs2`, … and are not published on PyPI;
 > install from a tag, e.g. `pip install https://github.com/fsokolovsky/edupage-api/archive/refs/tags/0.13.3+fs1.tar.gz`.
 
 # Installing
@@ -70,6 +70,38 @@ for event in edupage.get_notification_history(date_from):
 `event_type` is unchanged for backwards compatibility. `event_subtype` is `None`
 for every other event type, and `kind` returns `event_type` when EduPage sends a
 code this library does not know yet.
+
+## Payments (read only)
+
+The "Payments" module (Platby): fees the school charges to a student, payments it
+received for them and the bank accounts to pay to. A parent selects the child
+first; this does not start any payment.
+
+```python
+children = edupage.get_children()
+edupage.switch_to_child(children[0])
+
+payments = edupage.get_payments()          # current school year
+# payments = edupage.get_payments(2025)    # an earlier one (starting year)
+
+print(payments.charged_to_date, payments.paid, payments.balance, payments.currency)
+
+for fee in payments.outstanding_fees:      # Fee: plan_name, due_date, amount, paid, outstanding
+    account = payments.account(fee.account_id)
+    print(fee.due_date, fee.plan_name, fee.outstanding, account.iban, fee.specific_symbol)
+
+for payment in payments.payments:          # Payment: date, amount, type, viamo_id, fee_allocations
+    print(payment.date, payment.amount, payment.type, payment.plan_name)
+```
+
+`total_charged` covers the whole school year including future fees, `charged_to_date`
+only fees that are already due, and `paid` every payment received (the opening balance
+carried over from the previous year is a `Payment` with `is_opening_balance`). The paid
+part of a fee comes from EduPage (`Fee.paid`, `Fee.allocations` by payment id); the
+amounts listed on a `PaymentPlan` are only a template and are 0 for meal plans. Every
+object keeps the original EduPage row in `raw`. Tested on three Slovak schools with
+one child each; which child a multi-child parent sees is checked against
+`switch_to_child()` and raises when it differs.
 
 ## Registrations, surveys and consultations (read only)
 
